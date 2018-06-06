@@ -1,0 +1,392 @@
+
+#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+#define dtype    float
+#define HARDWARE 0
+#define DEBUG    1
+
+//#define HARDWARE_PLATFORM 
+
+using namespace std;
+
+dtype CONV1_WEIGHT_[4*3*3*3] = {0.0f};
+
+dtype INPUT_DATA_[3*14*14] = {0.0f};
+
+void init_input_data(dtype*** input_data) {
+  
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j< 14; j++) {
+      for (int k = 0; k < 14; k++) {
+        dtype r = static_cast <dtype> (rand()) / static_cast <dtype> (RAND_MAX);
+        INPUT_DATA_[i*14*14+ j*14+ k] = r;
+      }
+    }
+  }
+
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j< 16; j++) {
+      for (int k = 0; k < 16; k++) {
+        if (j == 0 || j == 15 || k == 0 || k == 15) 
+           input_data[i][j][k] = dtype(0);
+        //input_data[i][j+1][k+1] = dtype(INPUT_DATA_[i*14*14+ j*14+ k]); ///dtype(255.0);
+      }
+    }
+  }
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j< 14; j++) {
+      for (int k = 0; k < 14; k++) {
+        input_data[i][j+1][k+1] = dtype(INPUT_DATA_[i*14*14+ j*14+ k]); ///dtype(255.0);
+      }
+    }
+  }
+
+}
+
+
+void init_conv1_weight(dtype ****conv1_weight) {
+  
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j< 3; j++) {
+      for (int k = 0; k < 3; k++) {
+        for (int l = 0; l < 3;l++) {
+          if (rand() % 10 < 5)
+            CONV1_WEIGHT_[i*3*3*3+j*3*3+k*3+l] = dtype(0);
+          else
+            CONV1_WEIGHT_[i*3*3*3+j*3*3+k*3+l] = static_cast <dtype> (rand()) / static_cast <dtype> (RAND_MAX);
+        }
+      }
+    }
+  }
+
+  
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j< 3; j++) {
+      for (int k = 0; k < 3; k++) {
+        for (int l = 0; l < 3;l++) {
+          conv1_weight[i][j][k][l] = CONV1_WEIGHT_[i*3*3*3+j*3*3+k*3+l];
+        }
+      }
+    }
+  }
+}
+
+void define_4D_array(dtype **** &array, int to, int ti, int row, int col) {
+  array = new dtype ***[to];
+  for (int i = 0; i < to; i++) {
+    array[i] = new dtype **[ti];
+    for (int j = 0; j< ti; j++) {
+      array[i][j] = new dtype *[row];
+      for (int k = 0; k < row; k++) {
+      	array[i][j][k] = new dtype[col];
+      }
+    }
+  }
+}
+void define_3D_array(dtype*** &array, int channel, int row, int col) {
+  array = new dtype **[channel];
+  for (int i = 0; i < channel; i++) {
+    array[i] = new dtype *[row];
+    for (int j = 0; j< row; j++) {
+      array[i][j] = new dtype[col];
+    }
+  }
+}
+
+void conv(int input_R, int input_C, int input_N, 
+           int weight_K, int output_R, int output_C, int output_N,
+           int S,
+           //float* input_data, float* weight, float* bias, float* output) {
+           dtype*** input_data, dtype**** weight, /*float* bias,*/ dtype*** output) {
+  for (int row = 0; row < output_R; row++) {
+    for (int col = 0; col < output_C; col++) {
+      for (int to = 0; to < output_N; to++) {
+        for (int ti = 0; ti < input_N; ti++) {
+          for (int i = 0; i < weight_K; i++) {
+            for (int j = 0; j< weight_K; j++) {
+               output[to][row][col] += weight[to][ti][i][j] * input_data[ti][S*row+i][S*col+j];
+               //output[to*output_R*output_C + row*output_C + col] +=
+               //  weight[to*input_N*weight_K*weight_K+ ti*weight_K*weight_K+i*weight_K+j] *
+               //  input_data[ti*input_R*input_C + (S*row+i)*input_C + S*col+ j];
+            }
+          }
+        }
+        //output[to*output_R*output_C + row*output_C + col] += bias[to];
+        //output[to][row][col] += bias[to];
+      }
+    }
+  }
+}
+void output_3D_array(dtype*** array, int channel, int row, int col) {
+  for (int i = 0; i < channel; i++) {
+    for (int j = 0; j< row; j++) {
+      for (int k = 0; k < col; k++) {
+        cout << dec << array[i][j][k] << " ";
+      }
+      cout << endl;
+    }
+    cout << endl;
+  }
+}
+
+void output_4D_array(dtype**** array, int g, int channel, int row, int col) {
+  for (int g_i = 0; g_i < g; g_i++)
+  for (int i = 0; i < channel; i++) {
+    for (int j = 0; j< row; j++) {
+      for (int k = 0; k < col; k++) {
+        cout << array[g_i][i][j][k] << " ";
+      }
+      cout << endl;
+    }
+    cout << endl;
+  }
+}
+
+void output_weight(dtype**** array, int g, int channel, int row, int col) {
+  for (int g_i = 0; g_i < g; g_i++) {
+    for (int j = 0; j< row; j++) {
+      for (int i = 0; i < channel; i++) {
+        for (int k = 0; k < col; k++) {
+          cout << array[g_i][i][j][k] << "\t";
+        }
+        cout <<"\t";
+      }
+      cout << endl;
+    }
+    cout << endl;
+  }
+}
+
+void count_loc_info(dtype**** array, int g, int channel, int row, int col) {
+
+  for (int i = 0; i < channel; i++) {
+    for (int j = 0; j< row; j++) {
+      for (int k = 0; k < col; k++) {
+        int count = 0;
+        for (int g_i = 0; g_i < g; g_i++) {
+          if (array[g_i][i][j][k] != 0)
+            count++;
+        }
+        cout << count << " ";
+      }
+      cout << endl;
+    }
+    cout << endl;
+  }
+  
+  for (int i = 0; i < channel; i++) {
+    for (int j = 0; j< row; j++) {
+      for (int k = 0; k < col; k++) {
+        for (int g_i = 0; g_i < g; g_i++) {
+          if (array[g_i][i][j][k] != 0)
+            cout <<  array[g_i][i][j][k] << " ";
+        }
+      }
+    }
+  }
+  cout << endl;
+}
+
+void gen_weight(dtype**** array, int g, int channel, int row, int col) {
+  for (int i = 0; i < channel; i++) {
+    for (int k = 0; k < col; k++) {
+      for (int j = 0; j< row; j++) {
+        for (int g_i = 0; g_i < g; g_i++) {
+          if (array[g_i][i][j][k] != 0) {
+            cout << "0x";
+            cout << "0" << hex << g_i << "0" << hex << j << "00" << "0" << hex << array[g_i][i][j][k] << " ";
+            cout << endl;
+          }
+        }
+      }
+    }
+  }
+}
+
+void hardware_weight_init(dtype**** array, int* WEIGHT, int g, int channel, int row, int col) {
+  int c = 0;
+  if (DEBUG) {
+    cout << "output weight\n";
+  }
+  for (int i = 0; i < channel; i++) {
+    for (int k = 0; k < col; k++) {
+      for (int j = 0; j< row; j++) {
+        for (int g_i = 0; g_i < g; g_i++) {
+          if (array[g_i][i][j][k] != dtype(0)) {
+            WEIGHT[c] = (g_i << 24)  +   (j << 16)   + (0x0000FFFF & int(array[g_i][i][j][k] * pow(2, 10)));
+            if (DEBUG) {
+              cout << hex << WEIGHT[c] << "\n";
+            }
+            c++;
+          }
+        }
+      }
+    }
+  }
+  if (DEBUG) 
+    cout << "num of weight = " << dec << c << endl;
+}
+
+
+void hardware_weight_loc_init(dtype**** array, int* WEIGHT_LOC, int g, int channel, int row, int col) {
+  
+  if (DEBUG) {
+    cout << "output weight loc \n";
+  }
+  int c = 0;
+  for (int i = 0; i < channel; i++) {
+    for (int k = 0; k < col; k++) {
+      
+      WEIGHT_LOC[c] = 0;
+      for (int j = 0; j< row; j++) {
+        int count = 0;
+        for (int g_i = 0; g_i < g; g_i++) {
+          if (array[g_i][i][j][k] != dtype(0))
+            count++;
+        }
+        WEIGHT_LOC[c] += (count << (4*(2 - j))); 
+      }
+      if (DEBUG) {
+        cout << hex << WEIGHT_LOC[c] << endl;
+      }
+      c++;
+    
+    }
+  }
+
+}
+
+
+int main() {
+  
+  //dtype input_data
+  dtype ***input_data, ****conv1_weight;
+  define_3D_array(input_data, 3, 16, 16);
+  init_input_data(input_data);
+  
+  output_3D_array(input_data, 3, 16, 16);
+  
+  define_4D_array(conv1_weight, 4, 3, 3, 3);
+  init_conv1_weight(conv1_weight);
+
+  output_4D_array(conv1_weight, 4, 3, 3, 3);
+  output_weight(conv1_weight, 4, 3, 3, 3);
+  //gen_weight(conv1_weight, 4, 3, 3, 3);
+  //cout << " gen_weigth_loc end\n";
+  //count_loc_info(conv1_weight, 4, 3, 3, 3);
+
+  dtype*** conv1_output;
+  define_3D_array(conv1_output, 4, 14, 14);
+  conv(16, 16, 3, 3, 14, 14, 4, 1, input_data, conv1_weight, conv1_output);
+
+  if (DEBUG) {
+    cout << "output golden result\n";
+    output_3D_array(conv1_output, 4, 14, 14);
+  }
+
+  
+
+
+#ifdef HARDWARE_PLATFORM 
+    init_platform();
+#endif 
+    printf("start\n");
+
+    printf("stage 1, init input data, weight, and weight loc_info\n");
+
+    int* INPUT;
+    if (HARDWARE) 
+      INPUT = (int *)0x00200000;
+    else
+      INPUT = new int [3*14*7];
+    int  c = 0;
+    for (int j = 0; j < 14; j++) {
+      for (int i = 0; i < 3; i++) {
+        for (int k = 0; k < 14; k = k + 2) {
+          INPUT[c++] = int(static_cast<int>(INPUT_DATA_[i*14*14+j*14+k] * pow(2, 10)) * pow(2, 16)) + static_cast<int>(INPUT_DATA_[i*14*14+j*14+k+1] * pow(2, 10));
+        }
+      }
+    }
+    if (DEBUG) {
+      printf("debug input data \n");
+      int a = 0x0000FFFF;
+      int b = 0xFFFF0000;
+      for (int i = 0; i < 3*14*7; i++) {
+        float x2 = static_cast<float>(INPUT[i] & a)/ pow(2, 10);
+        float x1 = static_cast<float>((INPUT[i] & b) >> 16) / pow(2, 10);
+        printf("%x\t%f\t%f\t", INPUT[i], x1, x2);
+        if(i % 7 == 6) printf("\n");
+      }
+    }
+    int * WEIGHT;
+    if (HARDWARE) 
+       WEIGHT = (int*)0x00300000;
+    else
+       WEIGHT = new int[4*3*3*3];
+    hardware_weight_init(conv1_weight, WEIGHT, 4, 3, 3, 3);
+
+    int *WEIGHT_LOC;
+    if (HARDWARE) 
+       WEIGHT_LOC = (int*)0x00400000;
+    else
+       WEIGHT_LOC = new int[3*3];
+    hardware_weight_loc_init(conv1_weight, WEIGHT_LOC, 4, 3, 3, 3);
+    
+    printf("stage 2, start transfer and compute\n");
+#ifdef HARDWARE_PLATFORM    
+      Xil_Out32(0x4000000C, 0);
+      Xil_Out32(0x40000000, 1);   // reset = 1   slv_reg0 == 1
+      Xil_Out32(0x40000000, 0);   // reset = 0
+      Xil_Out32(0x4000000C, 4);  // start = 1, slv_reg3 == 4
+      sleep(5);    
+#endif 
+    printf("stage 3, get result data\n");
+#ifdef HARDWARE_PLATFORM
+    int RESULT[4*14*14] = {0};
+    int* p = (int *)0x00500000;
+    int q = 0;
+    for (int j = 0; j < 14; j++) {
+      for (int k = 0; k < 14; k++) {
+        int a = 0x0000FFFF;
+        int b = 0xFFFF0000;
+        int x2 = p[q] & a;
+        int x1 = (p[q] & b) >> 16;
+
+        RESULT[0*14*14+j*14+k] = x2;
+        RESULT[1*14*14+j*14+k] = x1;
+        x2 = p[q+1] & a;
+        x1 = (p[q+1] & b) >> 16;
+        RESULT[2*14*14+j*14+k] = x2;
+        RESULT[3*14*14+j*14+k] = x1;
+
+        q = q+2;
+      }
+    }
+
+    for (int i = 0; i < 4; i++) {
+      for (int j = 0; j < 14; j++) {
+        for (int k = 0; k < 14; k++) {
+          printf("err = %f\t", RESULT[i*14*14+j*14+k] - conv1_output[i][j][k]);
+          
+          //printf("%d\t", RESULT[i*14*14+j*14+k]);
+        }
+        printf("\n");
+      }
+      printf("\n");
+    }
+
+
+#endif
+
+
+    printf("done\n");
+
+
+
+  return 0;
+}
+
+
