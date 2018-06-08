@@ -191,6 +191,19 @@ void output_3D_array(dtype*** array, int channel, int row, int col) {
   printf("\n");
 
 }
+void output_golden_result(dtype*** array, int channel, int row, int col) {
+  for (int i = 0; i < channel; i++) {
+    for (int j = 0; j< row; j++) {
+      for (int k = 0; k < col; k++) {
+        printf("%f,\t",array[i][j][k]);
+      }
+      printf("\n");
+    }
+    printf("\n");
+  }
+  printf("\n");
+
+}
 
 void output_4D_array(dtype**** array, int g, int channel, int row, int col) {
   for (int g_i = 0; g_i < g; g_i++)
@@ -245,7 +258,8 @@ int main() {
 
   
   cout << "output result\n\n";
-  output_3D_array(conv1_output, 4, 14, 14);
+  //output_3D_array(conv1_output, 4, 14, 14);
+  output_golden_result(conv1_output, 4, 14, 14);
   
 
 

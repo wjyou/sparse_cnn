@@ -101,19 +101,7 @@ dtype CONV1_WEIGHT_[4*3*3*3] = {0.530552, 0.000000, 0.000000,
 
 void init_input_data(dtype*** input_data) {
 
-   printf("start\n");
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j< 14; j++) {
-      for (int k = 0; k < 14; k++) {
-        dtype r = (dtype) (rand()) / (dtype) (RAND_MAX);
-        INPUT_DATA_[i*14*14+ j*14+ k] = r;
-        printf("%f, ", r);
-      }
-      printf("\n");
-    }
-  }
-  printf("\nend\n");
-
+   
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j< 16; j++) {
       for (int k = 0; k < 16; k++) {
@@ -436,7 +424,17 @@ int main() {
         }
       }
     }
-   
+   if (DEBUG) {
+      printf("debug input data \n");
+      int a = 0x0000FFFF;
+      int b = 0xFFFF0000;
+      for (int i = 0; i < 3*14*7; i++) {
+        float x2 = (float)(INPUT[i] & a)/ pow(2, 10);
+        float x1 = (float)((INPUT[i] & b) >> 16) / pow(2, 10);
+        printf("%08x %f %f ", INPUT[i], x1, x2);
+        if(i % 7 == 6) printf("\n");
+      }
+    }
     for (int i = 0; i < 3*14; i++) { 
       cout << "#10 input_data <= 224'h";
       for (int j = 0; j < 7; j++) {
@@ -447,18 +445,6 @@ int main() {
 	    cout << "input_data_ram_w_addr <= " << dec << i << ";\n";
     }
 
-    if (DEBUG) {
-      printf("debug input data \n");
-      int a = 0x0000FFFF;
-      int b = 0xFFFF0000;
-      for (int i = 0; i < 3*14*7; i++) {
-        float x2 = (float)(INPUT[i] & a)/ pow(2, 10);
-        float x1 = (float)((INPUT[i] & b) >> 16) / pow(2, 10);
-        printf("%x\t%f\t%f\t", INPUT[i], x1, x2);
-        if(i % 7 == 6) printf("\n");
-      }
-      
-    }
     int * WEIGHT;
     if (HARDWARE)
        WEIGHT = (int*)0x00300000;
